@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { HistoryPanel } from "@/components/history-panel";
 import { PredictionForm } from "@/components/prediction-form";
@@ -11,7 +11,24 @@ import { exportPredictionPDF } from "@/utils/pdf";
 
 const HISTORY_KEY = "edu2job.history";
 
+const normalizeHistory = (raw: unknown): HistoryItem[] => {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const candidate = item as Record<string, unknown>;
+    const profile = candidate.profile as Record<string, unknown> | undefined;
+    const result = candidate.result as Record<string, unknown> | undefined;
+
+    const hasNewProfile = !!profile && typeof profile.degree === "string" && typeof profile.branch === "string";
+    const hasNewResult = !!result && Array.isArray(result.predicted_roles);
+
+    return hasNewProfile && hasNewResult;
+  }) as HistoryItem[];
+};
+
 const Index = () => {
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [lastProfile, setLastProfile] = useState<PredictionFormPayload | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -21,8 +38,10 @@ const Index = () => {
     const cached = localStorage.getItem(HISTORY_KEY);
     if (cached) {
       try {
-        const parsed = JSON.parse(cached) as HistoryItem[];
-        setHistory(parsed);
+        const parsed = JSON.parse(cached) as unknown;
+        const normalized = normalizeHistory(parsed);
+        setHistory(normalized);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(normalized));
       } catch {
         localStorage.removeItem(HISTORY_KEY);
       }
@@ -40,13 +59,18 @@ const Index = () => {
   }, []);
 
   const handlePredict = async (payload: PredictionFormPayload) => {
-    if (!payload.skills.length) {
-      toast.error("Add at least one skill");
+    if (payload.cgpa < 0 || payload.cgpa > 10) {
+      toast.error("CGPA must be between 0 and 10");
       return;
     }
 
-    if (payload.cgpa < 0 || payload.cgpa > 10) {
-      toast.error("CGPA must be between 0 and 10");
+    if (payload.tenth_percentage < 0 || payload.tenth_percentage > 100 || payload.twelfth_percentage < 0 || payload.twelfth_percentage > 100) {
+      toast.error("10th/12th percentage must be between 0 and 100");
+      return;
+    }
+
+    if (payload.graduation_year < 2000 || payload.graduation_year > 2100) {
+      toast.error("Graduation year must be between 2000 and 2100");
       return;
     }
 
@@ -56,10 +80,19 @@ const Index = () => {
       setResult(prediction);
       setLastProfile(payload);
       toast.success("Prediction generated successfully");
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
 
-      const latestHistory = await predictionApi.getHistory(10);
-      setHistory(latestHistory.items);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(latestHistory.items));
+      predictionApi
+        .getHistory(10)
+        .then((latestHistory) => {
+          setHistory(latestHistory.items);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(latestHistory.items));
+        })
+        .catch(() => {
+          toast.info("Live history is unavailable, keeping local results.");
+        });
     } catch (error) {
       toast.error("Unable to fetch prediction. Please check backend API.");
       console.error(error);
@@ -93,10 +126,12 @@ const Index = () => {
 
         <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
           <div className="space-y-6">
-            <PredictionForm onSubmit={handlePredict} loading={loading} initial={lastProfile ?? undefined} />
+            <PredictionForm onSubmit={handlePredict} loading={loading} initial={lastProfile ?? undefined} result={result} />
             <HistoryPanel history={history} />
           </div>
-          <ResultsPanel result={result} loading={loading} onExport={handleExport} lastProfile={lastProfile} />
+          <div ref={resultsRef} className="animate-in fade-in duration-500">
+            <ResultsPanel result={result} loading={loading} onExport={handleExport} lastProfile={lastProfile} />
+          </div>
         </div>
       </section>
     </main>

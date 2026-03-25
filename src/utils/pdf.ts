@@ -11,29 +11,32 @@ export const exportPredictionPDF = (profile: PredictionFormPayload, result: Pred
 
     doc.setFontSize(11);
     doc.text(`Generated: ${now.toLocaleString()}`, 14, 28);
-    doc.text(`Education: ${profile.education}`, 14, 36);
-    doc.text(`Stream: ${profile.stream}`, 14, 42);
+    doc.text(`Degree: ${profile.degree}`, 14, 36);
+    doc.text(`Branch: ${profile.branch}`, 14, 42);
     doc.text(`CGPA: ${profile.cgpa}`, 14, 48);
-    doc.text(`Internships: ${profile.internships}`, 14, 54);
-    doc.text(`Certifications: ${profile.certifications}`, 14, 60);
-    doc.text(`Skills: ${profile.skills.join(", ")}`, 14, 66);
+    doc.text(`10th Percentage: ${profile.tenth_percentage}`, 14, 54);
+    doc.text(`12th Percentage: ${profile.twelfth_percentage}`, 14, 60);
+    doc.text(`Graduation Year: ${profile.graduation_year}`, 14, 66);
+    doc.text(`Backlogs: ${profile.backlogs}`, 14, 72);
+    doc.text(`College Type: ${profile.college_type}`, 14, 78);
+    doc.text(`Major Subject Focus: ${profile.major_subject_focus}`, 14, 84, { maxWidth: 180 });
 
     doc.setFontSize(13);
-    doc.text("Top Role Predictions", 14, 78);
+    doc.text("Top Role Predictions", 14, 98);
 
-    let y = 86;
-    result.roles.forEach((role, index) => {
+    let y = 106;
+    result.predicted_roles.forEach((role, index) => {
         doc.setFontSize(11);
-        doc.text(`${index + 1}. ${role.name} - ${role.confidence}%`, 14, y);
+        doc.text(`${index + 1}. ${role.role} - ${role.confidence}%`, 14, y);
         y += 8;
     });
 
     y += 4;
     doc.setFontSize(13);
-    doc.text("Skill Suggestions", 14, y);
+    doc.text("Improvement Suggestions", 14, y);
     y += 8;
 
-    result.skill_suggestions.forEach((suggestion) => {
+    result.improvement_suggestions.forEach((suggestion) => {
         doc.setFontSize(11);
         doc.text(`- ${suggestion}`, 14, y);
         y += 7;
@@ -41,12 +44,12 @@ export const exportPredictionPDF = (profile: PredictionFormPayload, result: Pred
 
     y += 3;
     doc.setFontSize(13);
-    doc.text("Profile Recommendations", 14, y);
+    doc.text("Weakness Indicators", 14, y);
     y += 8;
 
-    result.recommendations.forEach((tip) => {
+    result.weaknesses.forEach((tip) => {
         doc.setFontSize(11);
-        doc.text(`- ${tip.title}: ${tip.detail}`, 14, y, { maxWidth: 180 });
+        doc.text(`- ${tip.category}: ${tip.detail}`, 14, y, { maxWidth: 180 });
         y += 10;
     });
 

@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { createMockPredictResponse, withRoleInsightsFallback } from "@/lib/role-insights";
 import { HistoryResponse, PredictionFormPayload, PredictResponse } from "@/types/prediction";
 
 const api = axios.create({
@@ -9,8 +10,12 @@ const api = axios.create({
 
 export const predictionApi = {
     async predict(payload: PredictionFormPayload): Promise<PredictResponse> {
-        const response = await api.post<PredictResponse>("/predict", payload);
-        return response.data;
+        try {
+            const response = await api.post<PredictResponse>("/predict", payload);
+            return withRoleInsightsFallback(response.data);
+        } catch {
+            return createMockPredictResponse(payload.branch);
+        }
     },
 
     async getHistory(limit = 10): Promise<HistoryResponse> {
